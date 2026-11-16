@@ -1,4 +1,4 @@
-import { createBackend } from './backend.js?v=4';
+import { createBackend } from './backend.js?v=5';
 
 // A live poll: questions on the big screen, votes from phones, results as bars. No scores.
 // Routes: "#host" is the poll runner (library, editor, big screen); anything else is the voter's phone.
@@ -520,8 +520,15 @@ function hostStage(pin, questions, initial) {
       const c = answers[uid]?.choice;
       if (Number.isInteger(c) && c >= 0 && c < n) counts[c]++;
     }
+    // Results stay hidden until the end: the screen only says voting is closed.
     const tallies = { ...(state.tallies || {}), [i]: counts };
-    await setState({ ...carry(), tallies, phase: 'results', qIndex: i, question: state.question, counts });
+    await setState({ ...carry(), tallies, phase: 'closed', qIndex: i, question: state.question, votes: counts.reduce((a, b) => a + b, 0) });
+  }
+
+  // After the last question, results are revealed one question at a time.
+  function reveal(i) {
+    const q = questions[i];
+    setState({ ...carry(), phase: 'results', qIndex: i, question: { text: q.text, options: q.options }, counts: asArray((state.tallies || {})[i]) });
   }
 
   async function runAgain() {
@@ -545,7 +552,7 @@ function hostStage(pin, questions, initial) {
 
   function paint() {
     live = {};
-    const views = { lobby: lobbyView, question: questionView, results: resultsView, done: summaryView };
+    const views = { lobby: lobbyView, question: questionView, closed: closedView, results: resultsView, done: summaryView };
     root.replaceChildren((views[state.phase] || lobbyView)());
     updateLive();
   }
@@ -596,6 +603,19 @@ function hostStage(pin, questions, initial) {
         el('button', { class: 'btn primary big', onclick: closeVoting }, 'Close voting')));
   }
 
+  function closedView() {
+    const i = state.qIndex, q = questions[i];
+    const last = i >= questions.length - 1;
+    return el('div', { class: 'qview closed' },
+      stageTop(el('span', { class: 'eyebrow' }, `Question ${i + 1} of ${questions.length}`),
+        el('span', { class: 'muted' }, plural(state.votes || 0, 'vote'))),
+      el('h1', { class: 'q-text' }, q.text),
+      el('p', { class: 'closed-note' }, last ? 'Voting closed. That was the last question!' : 'Voting closed. Results at the end!'),
+      el('footer', { class: 'stage-actions' },
+        el('button', { class: 'btn primary big', onclick: () => last ? reveal(0) : startQuestion(i + 1) },
+          last ? 'Reveal results' : 'Next question')));
+  }
+
   function bars(q, counts) {
     const n = q.options.length;
     const total = counts.reduce((a, b) => a + (b || 0), 0);
@@ -615,8 +635,8 @@ function hostStage(pin, questions, initial) {
     const i = state.qIndex, q = questions[i], counts = asArray(state.counts);
     const total = counts.reduce((a, b) => a + (b || 0), 0);
     const last = i >= questions.length - 1;
-    return el('div', { class: 'rview' + (q.image ? ' has-image' : '') },
-      stageTop(el('span', { class: 'eyebrow' }, `Question ${i + 1} of ${questions.length}`),
+    return el('div', { class: 'rview reveal' + (q.image ? ' has-image' : '') },
+      stageTop(el('span', { class: 'eyebrow' }, `Result ${i + 1} of ${questions.length}`),
         el('span', { class: 'muted' }, plural(total, 'vote'))),
       el('h1', { class: 'q-text small' }, q.text),
       q.image ? el('div', { class: 'q-image small' }, el('img', { src: q.image, alt: 'Question image' })) : null,
@@ -624,8 +644,8 @@ function hostStage(pin, questions, initial) {
       el('footer', { class: 'stage-actions' },
         el('button', {
           class: 'btn primary big',
-          onclick: () => last ? setState({ ...carry(), phase: 'done', qIndex: i }) : startQuestion(i + 1),
-        }, last ? 'Show summary' : 'Next question')));
+          onclick: () => last ? setState({ ...carry(), phase: 'done', qIndex: i }) : reveal(i + 1),
+        }, last ? 'Show summary' : 'Next result')));
   }
 
   function summaryView() {
@@ -765,13 +785,13 @@ function playerStage(pin, uid) {
         el('span', { class: 'badge big' }, LETTERS[k]),
         el('h2', {}, 'Vote in'),
         el('p', { class: 'locked-choice' }, opts[k] || ''),
-        el('p', { class: 'small' }, 'Results show on the big screen when voting closes.'),
+        el('p', { class: 'small' }, 'Results are revealed at the end.'),
         el('button', { class: 'btn ghost on-color', onclick: () => { changing = true; paint(); } }, 'Change my vote'));
     }
     const limit = (q.time || 0) * 1000;
     const t0 = typeof state.startedAt === 'number' ? state.startedAt : be.now();
     const remaining = () => Math.max(0, limit - (be.now() - t0));
-    const timeUp = () => msgCard('Voting closed', 'Results are coming up on the big screen.', 'muted');
+    const timeUp = () => msgCard('Voting closed', 'Results are revealed at the end.', 'muted');
     if (limit && remaining() <= 0) return timeUp();
 
     const fill = el('span');
@@ -801,12 +821,13 @@ function playerStage(pin, uid) {
     switch (state.phase) {
       case 'lobby': body = msgCard('You’re in!', 'Watch the big screen. The poll starts soon.', 'ok'); break;
       case 'question': body = votePad(); break;
-      case 'results': {
+      case 'closed': {
         const k = mine[state.qIndex];
         const opts = asArray(state.question?.options);
-        body = msgCard('Voting closed', k !== undefined ? `You voted “${opts[k] || LETTERS[k]}”. Results are on the big screen.` : 'You didn’t vote on this one. Results are on the big screen.');
+        body = msgCard('Voting closed', k !== undefined ? `You voted “${opts[k] || LETTERS[k]}”. Results are revealed at the end.` : 'You didn’t vote on this one. Results are revealed at the end.');
         break;
       }
+      case 'results': body = msgCard('Results time!', `Watch the big screen: result ${state.qIndex + 1} of ${state.total}.`, 'ok'); break;
       default: body = msgCard('That’s all!', 'Thanks for voting.', 'ok');
     }
     root.replaceChildren(head, body);

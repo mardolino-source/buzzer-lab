@@ -1,6 +1,6 @@
 # Buzzer Lab
 
-A live poll for the big screen. You run it from a laptop on the projector; people join on their phones with a 6-digit PIN or a QR code and vote. When you close voting, the results show as bars, and a summary of every question's top answer comes at the end. There are no points or leaderboards.
+A live poll for the big screen. You run it from a laptop on the projector; people join on their phones with a 6-digit PIN or a QR code and vote. Results stay hidden until every question is done, then they're revealed one question at a time, followed by a summary of every question's top answer. There are no points or leaderboards.
 
 - **Host:** open the page with `#host` at the end of the address, e.g. `https://yourname.github.io/buzzer-lab/#host`
 - **Voters:** open the page without `#host` (or scan the QR code on the big screen) and type the PIN and a name. No account needed.
@@ -41,8 +41,9 @@ The Firebase settings in `firebase-config.js` are meant to be public. The databa
 1. On `#host`, sign in, write a poll (or add the sample) and click **Run poll**.
 2. The big screen shows the address, the PIN and a QR code. Names pop up as people join. Click a name twice to remove someone.
 3. **Start poll.** The question and its answers go up on the screen, and the screen counts how many people have voted. People can change their vote until voting closes.
-4. Click **Close voting** (or let the time limit run out, if you set one). The results show how many votes each answer got; the top answer is outlined.
-5. After the last question, **Show summary** lists every question with its winner (or a tie). **Run again** keeps the same people and PIN, and **End poll** closes it.
+4. Click **Close voting** (or let the time limit run out, if you set one). The screen only shows how many people voted: results stay hidden, then **Next question**.
+5. After the last question, **Reveal results** shows each question's results one at a time (bars grow, then the top answer lights up). Click **Next result** to move on.
+6. After the last result, **Show summary** lists every question with its winner (or a tie). **Run again** keeps the same people and PIN, and **End poll** closes it.
 
 If the host laptop reloads mid-poll, open `#host` again in the same tab and the poll picks up where it was.
 

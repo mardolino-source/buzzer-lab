@@ -2,7 +2,7 @@
 //   get / set / update / remove / on(path, cb) / TS (server timestamp) / now()
 // - firebase: Realtime Database + Auth, for real games on phones.
 // - demo: localStorage + BroadcastChannel, for trying it out in several tabs of one browser.
-import { firebaseConfig } from './firebase-config.js?v=4';
+import { firebaseConfig } from './firebase-config.js?v=5';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 

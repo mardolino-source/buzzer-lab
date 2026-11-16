@@ -295,3 +295,12 @@ select { width: auto; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Voting closed (results hidden until the end) */
+.closed-note { font-size: clamp(22px, 2.6vw, 36px); color: var(--muted); text-align: center; margin: auto 0; }
+
+/* Revealing results one by one: bars grow, then the top answer lights up */
+@keyframes grow { from { transform: scaleX(0); } }
+@keyframes lightUp { from { background: transparent; box-shadow: none; } }
+.reveal .bar-fill { transform-origin: left; animation: grow 1.2s ease-out both; }
+.reveal .bar-row.is-top { animation: lightUp .5s 1.3s both; }
